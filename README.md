@@ -4,22 +4,23 @@ SDK oficial da [AvalonOps](https://github.com/Avalon-Ops) para Python — govern
 
 Ergonomia inspirada nos SDKs open source da Portkey; código próprio, MIT.
 
-## Instalação
+## Uso
+
+### Pré-requisitos
+
+1. Tenha o gateway AvalonOps da sua organização no ar e crie uma chave de API no console (menu **Chaves**).
+2. Instale o SDK e exporte as duas variáveis de ambiente — a base é a **raiz** do gateway, sem `/v1` (o SDK completa):
 
 ```bash
 pip install avalonops
+
+export AVALON_API_KEY="SUA_CHAVE"
+export AVALON_BASE_URL="https://gateway.suaempresa.com"
 ```
 
-## Configuração
+### Fazendo uma requisição
 
-| Variável | Papel |
-|---|---|
-| `AVALON_API_KEY` | Chave da API (a mesma do console) |
-| `AVALON_BASE_URL` | RAIZ do gateway da sua instalação, sem `/v1` — o SDK completa |
-
-Ambas também podem vir no construtor (`api_key`, `base_url`), que vence a env.
-
-## Uso
+O gateway adere à assinatura do SDK da OpenAI — troque `from openai import OpenAI` por `from avalonops import Avalon` e o resto do seu código continua igual. O `model` usa o id `@slug/modelo` que o catálogo do console mostra.
 
 ```python
 from avalonops import Avalon
@@ -30,22 +31,44 @@ resposta = client.chat.completions.create(
     model="@teste/gpt-4",
     messages=[{"role": "user", "content": "Explique governança de IA em uma frase."}],
 )
+```
 
-# Metadata por request vence o do construtor, chave a chave.
+### Metadata de primeira classe
+
+A convenção `_user` identifica quem chamou: alimenta o filtro de logs, os limites por usuário e o expurgo LGPD do gateway. O metadata do construtor vale para todas as chamadas; o por-request vence o do construtor, chave a chave. (`user` no corpo, padrão OpenAI, continua valendo — e vence o header, regra do gateway.)
+
+```python
 client.chat.completions.create(
     model="@teste/gpt-4",
     messages=[{"role": "user", "content": "oi"}],
     metadata={"_user": "outro-usuario"},
 )
+```
 
-# Toda resposta carrega o x-avalon-request-id — avalie a requisição com ele.
+### Feedback por requisição
+
+Toda resposta carrega o `x-avalon-request-id`, exposto como `request_id` — avalie a requisição com ele (`valor` entre -1 e 1; `peso` opcional):
+
+```python
 client.feedback.create(request_id=resposta.request_id, valor=1)
+```
 
-# O catálogo, no formato OpenAI: ids @slug/modelo.
+### O catálogo da sua organização
+
+No formato OpenAI, com os ids `@slug/modelo` prontos para copiar:
+
+```python
 modelos = client.models.list()
 ```
 
-A convenção `_user` identifica quem chamou: alimenta o filtro de logs, os limites por usuário e o expurgo LGPD do gateway. `user` no corpo (padrão OpenAI) continua valendo — e vence o header, regra do gateway.
+## Configuração
+
+| Variável | Papel |
+|---|---|
+| `AVALON_API_KEY` | Chave da API (a mesma do console) |
+| `AVALON_BASE_URL` | RAIZ do gateway da sua instalação, sem `/v1` — o SDK completa |
+
+Ambas também podem vir no construtor (`api_key`, `base_url`), que vence a env.
 
 Streaming, tipos e retries são os do SDK `openai` — inclusive `stream=True`, cujo objeto de stream também expõe `request_id`.
 
