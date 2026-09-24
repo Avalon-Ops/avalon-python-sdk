@@ -18,7 +18,12 @@ from openai import OpenAI
 
 CABECALHO_REQUEST_ID = "x-avalon-request-id"
 
-__all__ = ["CABECALHO_REQUEST_ID", "Avalon", "raiz_para_v1"]
+# O gateway do SaaS AvalonOps (emenda RN-SDK-02, 24/09): é a base quando nem
+# o construtor nem a env AVALON_BASE_URL apontam para outro lugar — o mesmo
+# desenho do api.portkey.ai embutido no SDK da Portkey.
+URL_PADRAO_SAAS = "https://api.avalonops.com.br"
+
+__all__ = ["CABECALHO_REQUEST_ID", "URL_PADRAO_SAAS", "Avalon", "raiz_para_v1"]
 
 
 def raiz_para_v1(raiz: str) -> str:
@@ -127,11 +132,10 @@ class Avalon:
             raise ValueError("api_key ausente: passe api_key= ou defina a env AVALON_API_KEY.")
         raiz = base_url if base_url is not None else os.environ.get("AVALON_BASE_URL")
         if not raiz:
-            raise ValueError(
-                "base_url ausente: passe base_url= ou defina a env AVALON_BASE_URL "
-                "(a raiz do gateway, sem /v1)."
-            )
-        self._cliente = OpenAI(api_key=chave, base_url=raiz_para_v1(raiz))
+            raiz = URL_PADRAO_SAAS
+        # A base resolvida (construtor -> env -> default do SaaS), já com /v1.
+        self.base_url = raiz_para_v1(raiz)
+        self._cliente = OpenAI(api_key=chave, base_url=self.base_url)
         base: dict[str, str] = dict(metadata or {})
         self.chat = _Chat(self._cliente, base)
         self.embeddings = _Embeddings(self._cliente, base)

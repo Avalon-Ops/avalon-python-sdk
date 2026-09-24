@@ -16,10 +16,25 @@ def test_sem_api_key_falha_nomeando_a_env(monkeypatch: pytest.MonkeyPatch) -> No
         Avalon()
 
 
-def test_sem_base_url_falha_ensinando_que_a_base_e_a_raiz(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_saas_sem_base_url_o_default_embutido_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Emenda RN-SDK-02 (24/09): AvalonOps é SaaS — sem construtor nem env,
+    vale o gateway único, exposto na propriedade pública."""
     _limpar(monkeypatch)
-    with pytest.raises(ValueError, match=r"AVALON_BASE_URL.*sem /v1"):
-        Avalon(api_key="gov_x")
+    cliente = Avalon(api_key="gov_x")
+    assert cliente.base_url == "https://api.avalonops.com.br/v1"
+
+
+def test_env_vence_o_default_por_chamada_real(
+    monkeypatch: pytest.MonkeyPatch, fake: FakeGateway
+) -> None:
+    monkeypatch.setenv("AVALON_API_KEY", "gov_env")
+    monkeypatch.setenv("AVALON_BASE_URL", fake.url)
+    cliente = Avalon()
+    resposta = cliente.chat.completions.create(
+        model="@teste/gpt-4", messages=[{"role": "user", "content": "oi"}]
+    )
+    assert resposta.choices[0].message.content == "olá"
+    assert cliente.base_url == fake.url + "/v1"
 
 
 def test_as_envs_bastam(monkeypatch: pytest.MonkeyPatch) -> None:
