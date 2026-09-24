@@ -11,6 +11,7 @@ from typing import Any
 
 REQUEST_ID_DO_FAKE = "11111111-2222-4333-8444-555555555555"
 UUID_INEXISTENTE = "00000000-0000-4000-8000-000000000404"
+REQUEST_ID_ERRO_500 = "00000000-0000-4000-8000-000000000500"
 
 CHAT_COMPLETION = {
     "id": "chatcmpl-fake", "object": "chat.completion", "created": 1727180000, "model": "gpt-4",
@@ -95,6 +96,11 @@ class _Handler(BaseHTTPRequestHandler):
         if self.path == "/v1/feedback":
             request_id = str(corpo.get("request_id", ""))
             valor = corpo.get("valor")
+            if request_id == REQUEST_ID_ERRO_500:
+                # RN-SDK-05/F5: conta só as chegadas do sentinela de retry —
+                # não polui com os outros testes de feedback do mesmo fake.
+                self.server.contagem_feedback_erro_500 += 1  # type: ignore[attr-defined]
+                return self._responder(500, _erro("erro_interno", "Falha interna simulada."))
             if request_id == UUID_INEXISTENTE:
                 return self._responder(404, _erro("nao_encontrado", "Recurso não encontrado."))
             if not isinstance(valor, (int, float)) or valor < -1 or valor > 1:
@@ -107,6 +113,7 @@ class FakeGateway:
     def __init__(self) -> None:
         self._servidor = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
         self._servidor.ultima = None  # type: ignore[attr-defined]
+        self._servidor.contagem_feedback_erro_500 = 0  # type: ignore[attr-defined]
         self._thread = threading.Thread(target=self._servidor.serve_forever, daemon=True)
         self._thread.start()
         self.url = f"http://127.0.0.1:{self._servidor.server_address[1]}"
@@ -116,6 +123,9 @@ class FakeGateway:
         if gravada is None:
             raise AssertionError("nenhuma requisição chegou ao fake")
         return gravada
+
+    def contagem_feedback(self) -> int:
+        return self._servidor.contagem_feedback_erro_500  # type: ignore[attr-defined,no-any-return]
 
     def parar(self) -> None:
         self._servidor.shutdown()

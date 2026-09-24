@@ -18,7 +18,7 @@ def _novo(fake: FakeGateway, metadata: dict | None = None) -> Avalon:
 
 def test_metadata_do_construtor_vira_x_metadata(fake: FakeGateway) -> None:
     _novo(fake, {"_user": "fabio"}).chat.completions.create(model="@teste/gpt-4", messages=MENSAGENS)
-    assert fake.ultima()["headers"]["x-metadata"] == json.dumps({"_user": "fabio"}, ensure_ascii=False)
+    assert json.loads(fake.ultima()["headers"]["x-metadata"]) == {"_user": "fabio"}
 
 
 def test_merge_por_chave_e_corpo_sem_metadata(fake: FakeGateway) -> None:
@@ -42,6 +42,14 @@ def test_request_id_na_resposta_nao_stream(fake: FakeGateway) -> None:
     assert resposta.choices[0].message.content == "olá"
 
 
+def test_request_id_fica_fora_do_model_dump(fake: FakeGateway) -> None:
+    """F6: object.__setattr__ mantém o id fora de model_dump()/to_json() —
+    paridade com o Node (Object.defineProperty não-enumerável)."""
+    resposta = _novo(fake).chat.completions.create(model="@teste/gpt-4", messages=MENSAGENS)
+    assert "request_id" not in resposta.model_dump()
+    assert resposta.request_id == REQUEST_ID_DO_FAKE
+
+
 def test_request_id_no_stream_e_chunks_fluem(fake: FakeGateway) -> None:
     stream = _novo(fake).chat.completions.create(model="@teste/gpt-4", messages=MENSAGENS, stream=True)
     texto = "".join(chunk.choices[0].delta.content or "" for chunk in stream)
@@ -55,7 +63,17 @@ def test_embeddings_metadata_e_request_id(fake: FakeGateway) -> None:
     )
     assert resposta.request_id == REQUEST_ID_DO_FAKE
     assert fake.ultima()["rota"] == "/v1/embeddings"
-    assert fake.ultima()["headers"]["x-metadata"] == json.dumps({"_user": "fabio"}, ensure_ascii=False)
+    assert json.loads(fake.ultima()["headers"]["x-metadata"]) == {"_user": "fabio"}
+
+
+def test_metadata_com_acento_sobrevive_ascii_no_header(fake: FakeGateway) -> None:
+    resposta = _novo(fake, {"_user": "João"}).chat.completions.create(
+        model="@teste/gpt-4", messages=MENSAGENS
+    )
+    header = fake.ultima()["headers"]["x-metadata"]
+    header.encode("ascii")  # não levanta UnicodeEncodeError
+    assert json.loads(header)["_user"] == "João"
+    assert resposta.choices[0].message.content == "olá"
 
 
 def test_models_list_cru(fake: FakeGateway) -> None:

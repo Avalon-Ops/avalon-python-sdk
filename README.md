@@ -51,4 +51,4 @@ Streaming, tipos e retries são os do SDK `openai` — inclusive `stream=True`, 
 
 ## Licença
 
-MIT — [LICENSE](LICENSE). Documentação completa na sua instalação do console, em `/docs/conectar`.
+MIT — [LICENSE](https://github.com/Avalon-Ops/avalon-python-sdk/blob/main/LICENSE). Documentação completa na sua instalação do console, em `/docs/conectar`.

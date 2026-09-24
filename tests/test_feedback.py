@@ -3,7 +3,7 @@ from openai import APIStatusError
 
 from avalonops import Avalon
 
-from .fake_gateway import REQUEST_ID_DO_FAKE, UUID_INEXISTENTE, FakeGateway
+from .fake_gateway import REQUEST_ID_DO_FAKE, REQUEST_ID_ERRO_500, UUID_INEXISTENTE, FakeGateway
 
 
 def _novo(fake: FakeGateway) -> Avalon:
@@ -37,3 +37,10 @@ def test_valor_fora_da_faixa_nao_e_validado_no_cliente(fake: FakeGateway) -> Non
     assert capturado.value.status_code == 400
     # A prova de que o SDK não validou: o fake RECEBEU valor 2.
     assert fake.ultima()["corpo"]["valor"] == 2
+
+
+def test_retry_desligado_no_feedback_500_chega_cru_e_contagem_e_um(fake: FakeGateway) -> None:
+    with pytest.raises(APIStatusError) as capturado:
+        _novo(fake).feedback.create(request_id=REQUEST_ID_ERRO_500, valor=1)
+    assert capturado.value.status_code == 500
+    assert fake.contagem_feedback() == 1
