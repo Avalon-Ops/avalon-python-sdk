@@ -24,7 +24,7 @@ Ambas também podem vir no construtor (`api_key`, `base_url`), que vence a env.
 ```python
 from avalonops import Avalon
 
-client = Avalon(metadata={"_user": "fabio"})
+client = Avalon(metadata={"_user": "seu-usuario"})
 
 resposta = client.chat.completions.create(
     model="@teste/gpt-4",
@@ -35,7 +35,7 @@ resposta = client.chat.completions.create(
 client.chat.completions.create(
     model="@teste/gpt-4",
     messages=[{"role": "user", "content": "oi"}],
-    metadata={"_user": "lorena"},
+    metadata={"_user": "outro-usuario"},
 )
 
 # Toda resposta carrega o x-avalon-request-id — avalie a requisição com ele.
