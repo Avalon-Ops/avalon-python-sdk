@@ -1,0 +1,20 @@
+name: Publicar no PyPI
+on:
+  push:
+    tags: ['v*']
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]' build
+      - run: pytest -q
+      - run: python -m build
+      - name: Publicar (trusted publishing — portão humano da spec §9)
+        uses: pypa/gh-action-pypi-publish@release/v1
