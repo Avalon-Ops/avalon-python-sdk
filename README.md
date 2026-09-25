@@ -34,7 +34,7 @@ resposta = client.chat.completions.create(
 
 ### Metadata de primeira classe
 
-A convenção `_user` identifica quem chamou: alimenta o filtro de logs, os limites por usuário e o expurgo LGPD do gateway. O metadata do construtor vale para todas as chamadas; o por-request vence o do construtor, chave a chave. (`user` no corpo, padrão OpenAI, continua valendo — e vence o header, regra do gateway.)
+A convenção `_user` identifica quem chamou: alimenta o filtro de logs, os limites por usuário e o expurgo LGPD do gateway. O metadata do construtor vale para todas as chamadas; o por-request vence o do construtor, chave a chave. (`user` no corpo, padrão OpenAI, continua valendo — mas o metadata explícito vence o `user` do corpo; os defaults da chave e do workspace vencem o cliente.) Crie a chave já com `_user` no console e toda ferramenta fica identificada, mesmo sem passar metadata explícito por chamada.
 
 ```python
 client.chat.completions.create(
