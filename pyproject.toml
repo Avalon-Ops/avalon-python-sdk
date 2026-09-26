@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "avalonops"
-version = "0.2.0"
+version = "0.3.0"
 description = "SDK oficial da AvalonOps para Python — metadata de primeira classe sobre o SDK da OpenAI"
 readme = "README.md"
 license = "MIT"

@@ -46,10 +46,13 @@ client.chat.completions.create(
 
 ### Feedback por requisição
 
-Toda resposta carrega o `x-avalon-request-id`, exposto como `request_id` — avalie a requisição com ele (`valor` entre -1 e 1; `peso` opcional):
+Toda resposta carrega o `x-avalon-request-id`, exposto como `request_id` — avalie a requisição com ele: `valor` é um inteiro de -10 a 10 (👍/👎 = 1/-1; as estrelas do console gravam 1 a 5); `peso` vai de 0 a 1, padrão 1; `metadata` é opcional (objeto de strings, até 128 caracteres por valor):
 
 ```python
 client.feedback.create(request_id=resposta.request_id, valor=1)
+
+# 4 estrelas, com metadata
+client.feedback.create(request_id=resposta.request_id, valor=4, metadata={"_user": "ana"})
 ```
 
 ### O catálogo da sua organização
