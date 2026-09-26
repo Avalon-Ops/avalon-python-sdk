@@ -17,13 +17,14 @@ import httpx
 from openai import OpenAI
 
 CABECALHO_REQUEST_ID = "x-avalon-request-id"
+CABECALHO_DEBUG = "x-avalon-debug"
 
 # O gateway do SaaS AvalonOps (emenda RN-SDK-02, 24/09): é a base quando nem
 # o construtor nem a env AVALON_BASE_URL apontam para outro lugar — o mesmo
 # desenho do api.portkey.ai embutido no SDK da Portkey.
 URL_PADRAO_SAAS = "https://api.avalonops.com.br"
 
-__all__ = ["CABECALHO_REQUEST_ID", "URL_PADRAO_SAAS", "Avalon", "raiz_para_v1"]
+__all__ = ["CABECALHO_DEBUG", "CABECALHO_REQUEST_ID", "URL_PADRAO_SAAS", "Avalon", "raiz_para_v1"]
 
 
 def raiz_para_v1(raiz: str) -> str:
@@ -126,7 +127,14 @@ class Avalon:
         api_key: str | None = None,
         base_url: str | None = None,
         metadata: Mapping[str, str] | None = None,
+        debug: bool | None = None,
     ) -> None:
+        """`debug` é DO NOT TRACK do gateway (RN-NT-07/08) — só construtor,
+        nunca env: `False` faz TODA chamada deste cliente levar
+        `x-avalon-debug: 'false'` (string exata) via default_headers do
+        cliente openai — o log da requisição grava métricas e `_user`, mas
+        omite request/response. `True` ou ausente (default) não envia o
+        header nenhum (nunca mandamos 'true')."""
         chave = api_key if api_key is not None else os.environ.get("AVALON_API_KEY")
         if not chave:
             raise ValueError("api_key ausente: passe api_key= ou defina a env AVALON_API_KEY.")
@@ -135,7 +143,11 @@ class Avalon:
             raiz = URL_PADRAO_SAAS
         # A base resolvida (construtor -> env -> default do SaaS), já com /v1.
         self.base_url = raiz_para_v1(raiz)
-        self._cliente = OpenAI(api_key=chave, base_url=self.base_url)
+        # default_headers vai em TODA chamada do cliente openai — inclusive
+        # models.list() e o POST /feedback, que não passam pelo merge de
+        # x-metadata por chamada.
+        cabecalhos_default = {CABECALHO_DEBUG: "false"} if debug is False else {}
+        self._cliente = OpenAI(api_key=chave, base_url=self.base_url, default_headers=cabecalhos_default)
         base: dict[str, str] = dict(metadata or {})
         self.chat = _Chat(self._cliente, base)
         self.embeddings = _Embeddings(self._cliente, base)
