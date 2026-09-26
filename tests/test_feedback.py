@@ -51,8 +51,10 @@ def test_valor_nao_inteiro_fake_recusa_com_400_valor_invalido(fake: FakeGateway)
     assert "valor_invalido" in superficie
 
 
-def test_valor_nao_inteiro_mensagem_generica_como_no_nucleo(fake: FakeGateway) -> None:
-    # politicaDeForma(codigo, motivo) — genérica ao cliente, como no núcleo real
+def test_valor_nao_inteiro_mensagem_especifica_como_no_nucleo(fake: FakeGateway) -> None:
+    # Fix I6 da revisão final ("Logs idênticos à Portkey"): o núcleo passa
+    # mensagemAoCliente ESPECÍFICA (a regra em si) para valor_invalido — não
+    # mais a genérica de politicaDeForma sem 3º argumento.
     with pytest.raises(APIStatusError) as capturado:
         _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=0.5)
     assert capturado.value.status_code == 400
@@ -60,15 +62,32 @@ def test_valor_nao_inteiro_mensagem_generica_como_no_nucleo(fake: FakeGateway) -
     if isinstance(body, str):
         body = json.loads(body)
     assert body.get("erro", {}).get("codigo") == "valor_invalido"
-    assert body.get("erro", {}).get("mensagem") == "A requisição não está no formato aceito pela sua organização."
+    assert body.get("erro", {}).get("mensagem") == "valor deve ser um inteiro entre -10 e 10."
 
 
-def test_peso_fora_de_0_1_fake_recusa_com_400_peso_invalido(fake: FakeGateway) -> None:
+def test_valor_float_integral_e_aceito_mas_float_fracionario_e_recusado(fake: FakeGateway) -> None:
+    # Fix M1 da revisão final: JSON manda 4.0 → o núcleo (JS) recebe o
+    # número 4 e Number.isInteger(4) passa; o fake em Python distinguia
+    # int/float na marra (isinstance(valor, int) rejeitava 4.0), recusando o
+    # que o gateway real aceitaria. `valor.is_integer()` alinha os dois.
+    criado = _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4.0)
+    assert criado["valor"] == 4.0
+
+    with pytest.raises(APIStatusError) as capturado:
+        _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4.5)
+    assert capturado.value.status_code == 400
+
+
+def test_peso_fora_de_0_1_fake_recusa_com_400_peso_invalido_mensagem_especifica(fake: FakeGateway) -> None:
     with pytest.raises(APIStatusError) as capturado:
         _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=1, peso=1.5)
     assert capturado.value.status_code == 400
-    superficie = json.dumps({"body": capturado.value.body, "mensagem": str(capturado.value)})
-    assert "peso_invalido" in superficie
+    body = capturado.value.body
+    if isinstance(body, str):
+        body = json.loads(body)
+    assert body.get("erro", {}).get("codigo") == "peso_invalido"
+    # Fix I6 da revisão final: mesmo racional do valor_invalido.
+    assert body.get("erro", {}).get("mensagem") == "peso deve ser um número entre 0 e 1."
 
 
 def test_peso_zero_e_aceito(fake: FakeGateway) -> None:
@@ -97,3 +116,36 @@ def test_metadata_presente_entra_no_corpo_campo_a_campo(fake: FakeGateway) -> No
 def test_sem_metadata_o_campo_nao_vai_no_corpo(fake: FakeGateway) -> None:
     _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4)
     assert "metadata" not in fake.ultima()["corpo"]
+
+
+# Fix M2 da revisão final ("Logs idênticos à Portkey"): o núcleo valida
+# `metadata` do feedback via validarMetadataDefault nas duas rotas (objeto
+# de strings, até 128 caracteres por valor, 400 metadata_invalida com a
+# frase genérica) — o fake em Python não validava nada, e a resposta 201
+# não ecoava o campo (o núcleo ecoa).
+def test_metadata_invalida_chega_cru_quando_nao_e_objeto_de_strings(fake: FakeGateway) -> None:
+    with pytest.raises(APIStatusError) as capturado:
+        _novo(fake).feedback.create(
+            request_id=REQUEST_ID_DO_FAKE, valor=1, metadata={"origem": 42}  # type: ignore[dict-item]
+        )
+    assert capturado.value.status_code == 400
+    body = capturado.value.body
+    if isinstance(body, str):
+        body = json.loads(body)
+    assert body.get("erro", {}).get("codigo") == "metadata_invalida"
+    # metadata_invalida continua com a frase GENÉRICA — Fix I6 só mudou
+    # valor_invalido/peso_invalido.
+    assert body.get("erro", {}).get("mensagem") == "A requisição não está no formato aceito pela sua organização."
+
+
+def test_metadata_invalida_chega_cru_quando_valor_excede_128_caracteres(fake: FakeGateway) -> None:
+    with pytest.raises(APIStatusError) as capturado:
+        _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=1, metadata={"_user": "a" * 129})
+    assert capturado.value.status_code == 400
+    superficie = json.dumps({"body": capturado.value.body, "mensagem": str(capturado.value)})
+    assert "metadata_invalida" in superficie
+
+
+def test_resposta_201_ecoa_metadata(fake: FakeGateway) -> None:
+    criado = _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4, metadata={"_user": "ana"})
+    assert criado["metadata"] == {"_user": "ana"}

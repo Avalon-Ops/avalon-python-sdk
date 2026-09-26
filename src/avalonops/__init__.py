@@ -111,7 +111,11 @@ class _Feedback:
         self,
         *,
         request_id: str,
-        valor: float,
+        # Fix M1 da revisão final ("Logs idênticos à Portkey"): `valor` é
+        # INTEIRO na escala da Portkey (-10..10, RN-FE-01/migration 065,
+        # governanca-plataforma/src/feedback/validacao.ts) — `float` aqui
+        # divergia do próprio tipo que o núcleo aceita.
+        valor: int,
         peso: float | None = None,
         metadata: Mapping[str, str] | None = None,
     ) -> Any:

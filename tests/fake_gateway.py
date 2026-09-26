@@ -112,19 +112,52 @@ class _Handler(BaseHTTPRequestHandler):
             # (RN-FE-09) — fidelidade byte a byte com o gateway real, não só a
             # faixa: `valor` é INTEIRO (bool é subclasse de int em Python, por
             # isso a exclusão explícita), `peso` tem teto em 1 (não só piso em 0).
-            if not isinstance(valor, int) or isinstance(valor, bool) or valor < -10 or valor > 10:
-                # politicaDeForma(codigo, motivo) — genérica ao cliente
+            #
+            # Fix M1 da revisão final: JSON manda 4.0 → o núcleo (JS) recebe o
+            # número 4 e `Number.isInteger(4)` passa — JS não distingue
+            # int/float. `isinstance(valor, int)` sozinho recusava 4.0 (é
+            # `float` em Python), mais estrito que o gateway real.
+            # `valor.is_integer()` cobre o float integral sem abrir mão de
+            # recusar fracionário (4.5).
+            valor_e_inteiro = (isinstance(valor, int) and not isinstance(valor, bool)) or (
+                isinstance(valor, float) and valor.is_integer()
+            )
+            if not valor_e_inteiro or valor < -10 or valor > 10:
+                # Fix I6 da revisão final: mensagem ESPECÍFICA (a regra em
+                # si), espelhando o 3º argumento de politicaDeForma que o
+                # núcleo agora passa — não mais a genérica.
                 return self._responder(
-                    400, _erro("valor_invalido", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
+                    400, _erro("valor_invalido", "valor deve ser um inteiro entre -10 e 10.")
                 )
             peso_bruto = corpo.get("peso")
             peso = 1 if peso_bruto is None else peso_bruto
             if not isinstance(peso, (int, float)) or isinstance(peso, bool) or peso < 0 or peso > 1:
-                # politicaDeForma(codigo, motivo) — genérica ao cliente
                 return self._responder(
-                    400, _erro("peso_invalido", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
+                    400, _erro("peso_invalido", "peso deve ser um número entre 0 e 1.")
                 )
-            return self._responder(201, {"id": "fb-1", "logId": request_id, "valor": valor, "peso": peso})
+            # Fix M2 da revisão final: o núcleo valida `metadata` via
+            # `validarMetadataDefault` nas duas rotas (objeto de strings, até
+            # 128 caracteres por valor, 400 metadata_invalida genérico) — o
+            # fake não validava nada, e a resposta 201 não ecoava o campo (o
+            # núcleo ecoa).
+            metadata_bruta = corpo.get("metadata")
+            metadata: dict[str, str] | None = None
+            if metadata_bruta is not None:
+                if not isinstance(metadata_bruta, dict):
+                    return self._responder(
+                        400, _erro("metadata_invalida", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
+                    )
+                metadata = {}
+                for k, v in metadata_bruta.items():
+                    if not isinstance(v, str) or len(v) > 128:
+                        return self._responder(
+                            400, _erro("metadata_invalida", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
+                        )
+                    metadata[k] = v
+            resposta_ok: dict[str, Any] = {"id": "fb-1", "logId": request_id, "valor": valor, "peso": peso}
+            if metadata is not None:
+                resposta_ok["metadata"] = metadata
+            return self._responder(201, resposta_ok)
         return self._responder(404, _erro("rota_inexistente", "Recurso não encontrado."))
 
 
