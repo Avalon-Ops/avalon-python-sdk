@@ -89,3 +89,41 @@ def test_403_chega_cru_como_erro_do_sdk_openai(fake: FakeGateway) -> None:
     # do erro (body/mensagem) carregue o código intacto.
     superficie = json.dumps({"body": capturado.value.body, "mensagem": str(capturado.value)})
     assert "modelo_nao_permitido" in superficie
+
+
+def test_debug_false_toda_chamada_leva_x_avalon_debug_false_inclusive_models_list(
+    fake: FakeGateway,
+) -> None:
+    """RN-NT-07/08: espelho da Task 8 do SDK node — debug=False injeta o
+    header em default_headers do cliente openai, então TODA chamada leva,
+    inclusive models.list() (que não passa pelo merge de metadata)."""
+    cliente = Avalon(api_key="gov_teste", base_url=fake.url, debug=False)
+    cliente.chat.completions.create(model="@teste/gpt-4", messages=MENSAGENS)
+    assert fake.ultima()["headers"]["x-avalon-debug"] == "false"
+
+    cliente.models.list()
+    assert fake.ultima()["headers"]["x-avalon-debug"] == "false"
+
+
+def test_debug_ausente_nenhum_header_x_avalon_debug(fake: FakeGateway) -> None:
+    _novo(fake).chat.completions.create(model="@teste/gpt-4", messages=MENSAGENS)
+    assert "x-avalon-debug" not in fake.ultima()["headers"]
+
+
+def test_debug_true_nenhum_header_x_avalon_debug_mesmo_comportamento_de_ausente(
+    fake: FakeGateway,
+) -> None:
+    cliente = Avalon(api_key="gov_teste", base_url=fake.url, debug=True)
+    cliente.chat.completions.create(model="@teste/gpt-4", messages=MENSAGENS)
+    assert "x-avalon-debug" not in fake.ultima()["headers"]
+
+
+def test_metadata_e_debug_false_coexistem_na_mesma_chamada(fake: FakeGateway) -> None:
+    """Lacuna apontada na review do node: os dois headers devem sobreviver
+    juntos — nem o merge de x-metadata some com o x-avalon-debug, nem
+    vice-versa."""
+    cliente = Avalon(api_key="gov_teste", base_url=fake.url, metadata={"_user": "fabio"}, debug=False)
+    cliente.chat.completions.create(model="@teste/gpt-4", messages=MENSAGENS)
+    headers = fake.ultima()["headers"]
+    assert headers["x-avalon-debug"] == "false"
+    assert json.loads(headers["x-metadata"]) == {"_user": "fabio"}
