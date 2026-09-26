@@ -51,6 +51,18 @@ def test_valor_nao_inteiro_fake_recusa_com_400_valor_invalido(fake: FakeGateway)
     assert "valor_invalido" in superficie
 
 
+def test_valor_nao_inteiro_mensagem_generica_como_no_nucleo(fake: FakeGateway) -> None:
+    # politicaDeForma(codigo, motivo) — genérica ao cliente, como no núcleo real
+    with pytest.raises(APIStatusError) as capturado:
+        _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=0.5)
+    assert capturado.value.status_code == 400
+    body = capturado.value.body
+    if isinstance(body, str):
+        body = json.loads(body)
+    assert body.get("erro", {}).get("codigo") == "valor_invalido"
+    assert body.get("erro", {}).get("mensagem") == "A requisição não está no formato aceito pela sua organização."
+
+
 def test_peso_fora_de_0_1_fake_recusa_com_400_peso_invalido(fake: FakeGateway) -> None:
     with pytest.raises(APIStatusError) as capturado:
         _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=1, peso=1.5)

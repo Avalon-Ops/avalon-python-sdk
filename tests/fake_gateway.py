@@ -13,6 +13,11 @@ REQUEST_ID_DO_FAKE = "11111111-2222-4333-8444-555555555555"
 UUID_INEXISTENTE = "00000000-0000-4000-8000-000000000404"
 REQUEST_ID_ERRO_500 = "00000000-0000-4000-8000-000000000500"
 
+# Mensagem genérica para politicaDeForma (RN-FE-01/02/05): valor_invalido,
+# peso_invalido, metadata_invalida devem devolver isso ao cliente; o motivo
+# fica apenas no log do servidor.
+MENSAGEM_GENERICA_POLICIA_DE_FORMA = "A requisição não está no formato aceito pela sua organização."
+
 CHAT_COMPLETION = {
     "id": "chatcmpl-fake", "object": "chat.completion", "created": 1727180000, "model": "gpt-4",
     "choices": [{"index": 0, "message": {"role": "assistant", "content": "olá"}, "finish_reason": "stop"}],
@@ -108,14 +113,16 @@ class _Handler(BaseHTTPRequestHandler):
             # faixa: `valor` é INTEIRO (bool é subclasse de int em Python, por
             # isso a exclusão explícita), `peso` tem teto em 1 (não só piso em 0).
             if not isinstance(valor, int) or isinstance(valor, bool) or valor < -10 or valor > 10:
+                # politicaDeForma(codigo, motivo) — genérica ao cliente
                 return self._responder(
-                    400, _erro("valor_invalido", f'valor deve ser um inteiro entre -10 e 10: "{valor}"')
+                    400, _erro("valor_invalido", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
                 )
             peso_bruto = corpo.get("peso")
             peso = 1 if peso_bruto is None else peso_bruto
             if not isinstance(peso, (int, float)) or isinstance(peso, bool) or peso < 0 or peso > 1:
+                # politicaDeForma(codigo, motivo) — genérica ao cliente
                 return self._responder(
-                    400, _erro("peso_invalido", f'peso deve ser um número entre 0 e 1: "{peso}"')
+                    400, _erro("peso_invalido", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
                 )
             return self._responder(201, {"id": "fb-1", "logId": request_id, "valor": valor, "peso": peso})
         return self._responder(404, _erro("rota_inexistente", "Recurso não encontrado."))
