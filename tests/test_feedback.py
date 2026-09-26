@@ -33,10 +33,10 @@ def test_404_chega_cru(fake: FakeGateway) -> None:
 
 def test_valor_fora_da_faixa_nao_e_validado_no_cliente(fake: FakeGateway) -> None:
     with pytest.raises(APIStatusError) as capturado:
-        _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=2)
+        _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=20)
     assert capturado.value.status_code == 400
-    # A prova de que o SDK não validou: o fake RECEBEU valor 2.
-    assert fake.ultima()["corpo"]["valor"] == 2
+    # A prova de que o SDK não validou: o fake RECEBEU valor 20.
+    assert fake.ultima()["corpo"]["valor"] == 20
 
 
 def test_retry_desligado_no_feedback_500_chega_cru_e_contagem_e_um(fake: FakeGateway) -> None:
@@ -44,3 +44,17 @@ def test_retry_desligado_no_feedback_500_chega_cru_e_contagem_e_um(fake: FakeGat
         _novo(fake).feedback.create(request_id=REQUEST_ID_ERRO_500, valor=1)
     assert capturado.value.status_code == 500
     assert fake.contagem_feedback() == 1
+
+
+def test_metadata_presente_entra_no_corpo_campo_a_campo(fake: FakeGateway) -> None:
+    _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4, metadata={"_user": "ana"})
+    assert fake.ultima()["corpo"] == {
+        "request_id": REQUEST_ID_DO_FAKE,
+        "valor": 4,
+        "metadata": {"_user": "ana"},
+    }
+
+
+def test_sem_metadata_o_campo_nao_vai_no_corpo(fake: FakeGateway) -> None:
+    _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4)
+    assert "metadata" not in fake.ultima()["corpo"]

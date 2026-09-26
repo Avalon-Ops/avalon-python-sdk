@@ -103,8 +103,8 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._responder(500, _erro("erro_interno", "Falha interna simulada."))
             if request_id == UUID_INEXISTENTE:
                 return self._responder(404, _erro("nao_encontrado", "Recurso não encontrado."))
-            if not isinstance(valor, (int, float)) or valor < -1 or valor > 1:
-                return self._responder(400, _erro("valor_invalido", "valor deve ser um número entre -1 e 1."))
+            if not isinstance(valor, (int, float)) or valor < -10 or valor > 10:
+                return self._responder(400, _erro("valor_invalido", "valor deve ser um número inteiro entre -10 e 10."))
             return self._responder(201, {"id": "fb-1", "logId": request_id, "valor": valor, "peso": corpo.get("peso", 1)})
         return self._responder(404, _erro("rota_inexistente", "Recurso não encontrado."))
 

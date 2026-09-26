@@ -107,14 +107,25 @@ class _Feedback:
     def __init__(self, cliente: OpenAI) -> None:
         self._cliente = cliente
 
-    def create(self, *, request_id: str, valor: float, peso: float | None = None) -> Any:
+    def create(
+        self,
+        *,
+        request_id: str,
+        valor: float,
+        peso: float | None = None,
+        metadata: Mapping[str, str] | None = None,
+    ) -> Any:
         """Espelho campo a campo de POST /v1/feedback — a validação é do
-        gateway (RN-SDK-05); 404/400 chegam crus como APIStatusError.
-        max_retries=0: é um INSERT sem idempotência no gateway — o retry
-        padrão do SDK openai gravaria feedback duas vezes."""
+        gateway (RN-SDK-05, RN-FE-09); `valor`/`peso` chegam como o chamador
+        mandou, sem faixa nem teto no SDK; 404/400 chegam crus como
+        APIStatusError. max_retries=0: é um INSERT sem idempotência no
+        gateway — o retry padrão do SDK openai gravaria feedback duas
+        vezes."""
         corpo: dict[str, Any] = {"request_id": request_id, "valor": valor}
         if peso is not None:
             corpo["peso"] = peso
+        if metadata is not None:
+            corpo["metadata"] = dict(metadata)
         resposta = self._cliente.post(
             "/feedback", body=corpo, cast_to=httpx.Response, options={"max_retries": 0}
         )
