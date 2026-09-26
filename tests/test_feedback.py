@@ -149,3 +149,13 @@ def test_metadata_invalida_chega_cru_quando_valor_excede_128_caracteres(fake: Fa
 def test_resposta_201_ecoa_metadata(fake: FakeGateway) -> None:
     criado = _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4, metadata={"_user": "ana"})
     assert criado["metadata"] == {"_user": "ana"}
+
+
+# N3(b) da re-revisão final do Bloco A: o núcleo real SEMPRE devolve
+# `metadata` na resposta 201 (objeto vazio quando o campo não veio no
+# corpo) — o fake só ecoava quando `metadata` estava presente na requisição,
+# omitindo a chave por completo quando ausente.
+def test_resposta_201_sempre_tem_metadata_mesmo_quando_ausente_na_requisicao(fake: FakeGateway) -> None:
+    criado = _novo(fake).feedback.create(request_id=REQUEST_ID_DO_FAKE, valor=4)
+    assert "metadata" not in fake.ultima()["corpo"]
+    assert criado["metadata"] == {}

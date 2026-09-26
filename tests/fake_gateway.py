@@ -140,23 +140,32 @@ class _Handler(BaseHTTPRequestHandler):
             # 128 caracteres por valor, 400 metadata_invalida genérico) — o
             # fake não validava nada, e a resposta 201 não ecoava o campo (o
             # núcleo ecoa).
+            #
+            # N3(b) da re-revisão final do Bloco A: o núcleo real SEMPRE
+            # devolve `metadata` na resposta 201 — objeto vazio quando o
+            # campo não veio no corpo, nunca a chave ausente. O fake só
+            # ecoava quando `metadata_bruta` não era None; corrigido para
+            # sempre montar o dict (vazio por padrão).
             metadata_bruta = corpo.get("metadata")
-            metadata: dict[str, str] | None = None
+            metadata: dict[str, str] = {}
             if metadata_bruta is not None:
                 if not isinstance(metadata_bruta, dict):
                     return self._responder(
                         400, _erro("metadata_invalida", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
                     )
-                metadata = {}
                 for k, v in metadata_bruta.items():
                     if not isinstance(v, str) or len(v) > 128:
                         return self._responder(
                             400, _erro("metadata_invalida", MENSAGEM_GENERICA_POLICIA_DE_FORMA)
                         )
                     metadata[k] = v
-            resposta_ok: dict[str, Any] = {"id": "fb-1", "logId": request_id, "valor": valor, "peso": peso}
-            if metadata is not None:
-                resposta_ok["metadata"] = metadata
+            resposta_ok: dict[str, Any] = {
+                "id": "fb-1",
+                "logId": request_id,
+                "valor": valor,
+                "peso": peso,
+                "metadata": metadata,
+            }
             return self._responder(201, resposta_ok)
         return self._responder(404, _erro("rota_inexistente", "Recurso não encontrado."))
 
