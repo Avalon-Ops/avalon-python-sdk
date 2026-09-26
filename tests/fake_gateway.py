@@ -103,9 +103,21 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._responder(500, _erro("erro_interno", "Falha interna simulada."))
             if request_id == UUID_INEXISTENTE:
                 return self._responder(404, _erro("nao_encontrado", "Recurso não encontrado."))
-            if not isinstance(valor, (int, float)) or valor < -10 or valor > 10:
-                return self._responder(400, _erro("valor_invalido", "valor deve ser um número inteiro entre -10 e 10."))
-            return self._responder(201, {"id": "fb-1", "logId": request_id, "valor": valor, "peso": corpo.get("peso", 1)})
+            # Literais copiados de governanca-plataforma/src/feedback/validacao.ts
+            # (RN-FE-09) — fidelidade byte a byte com o gateway real, não só a
+            # faixa: `valor` é INTEIRO (bool é subclasse de int em Python, por
+            # isso a exclusão explícita), `peso` tem teto em 1 (não só piso em 0).
+            if not isinstance(valor, int) or isinstance(valor, bool) or valor < -10 or valor > 10:
+                return self._responder(
+                    400, _erro("valor_invalido", f'valor deve ser um inteiro entre -10 e 10: "{valor}"')
+                )
+            peso_bruto = corpo.get("peso")
+            peso = 1 if peso_bruto is None else peso_bruto
+            if not isinstance(peso, (int, float)) or isinstance(peso, bool) or peso < 0 or peso > 1:
+                return self._responder(
+                    400, _erro("peso_invalido", f'peso deve ser um número entre 0 e 1: "{peso}"')
+                )
+            return self._responder(201, {"id": "fb-1", "logId": request_id, "valor": valor, "peso": peso})
         return self._responder(404, _erro("rota_inexistente", "Recurso não encontrado."))
 
 
